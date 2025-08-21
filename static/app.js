@@ -164,7 +164,10 @@ async function pollStatus() {
       startBtn.disabled = false;
       startBtn.textContent = "Lancer la transcription";
       startBtn.classList.remove("danger");
-      if (job.status === "done") downloadWrap.hidden = false;
+      if (job.status === "done") {
+        downloadWrap.hidden = false;
+        summaryBtn.style.display = job.use_api ? "inline-flex" : "none";
+      }
     }
     
 
@@ -224,7 +227,8 @@ form.addEventListener("submit", async (e) => {
 
   const fd = new FormData();
   const use_api = modeSelect.value === "api";
-  summaryBtn.style.display = use_api ? "inline-flex" : "none";
+  summaryBtn.style.display = "none";
+
   fd.append("use_api", use_api ? "1" : "0");
   fd.append("api_key", (apiKeyInput.value || "").trim());
   fd.append("model_label", modelSelect.value);
