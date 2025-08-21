@@ -228,6 +228,7 @@ form.addEventListener("submit", async (e) => {
   const fd = new FormData();
   const use_api = modeSelect.value === "api";
   summaryBtn.style.display = "none";
+
   fd.append("use_api", use_api ? "1" : "0");
   fd.append("api_key", (apiKeyInput.value || "").trim());
   fd.append("model_label", modelSelect.value);
