@@ -23,6 +23,10 @@ const summaryBtn = document.getElementById("btn-summary");
 
 const themeBtn = document.getElementById("toggle-theme");
 
+// Masquer les boutons de téléchargement tant que la transcription n'est pas terminée
+downloadWrap.style.display = "none";
+
+
 // ====== État local ======
 let pollTimer = null;
 let currentJobId = null;
@@ -164,11 +168,9 @@ async function pollStatus() {
       startBtn.disabled = false;
       startBtn.textContent = "Lancer la transcription";
       startBtn.classList.remove("danger");
-      if (job.status === "done") {
-        downloadWrap.hidden = false;
-        summaryBtn.style.display = job.use_api ? "inline-flex" : "none";
-      }
+      if (job.status === "done") downloadWrap.style.display = "flex";
     }
+
     
 
   } catch (err) {
@@ -216,7 +218,7 @@ form.addEventListener("submit", async (e) => {
   startBtn.textContent = "Arrêter la transcription";
   startBtn.classList.add("danger");
   startBtn.disabled = true;      // on le réactive dès que le job démarre
-  downloadWrap.hidden = true;
+  downloadWrap.style.display = "none";
   logsPre.textContent = "";
   filesList.innerHTML = "";
   statusSection.hidden = false;
@@ -227,14 +229,14 @@ form.addEventListener("submit", async (e) => {
 
   const fd = new FormData();
   const use_api = modeSelect.value === "api";
-  summaryBtn.style.display = "none";
-
+  summaryBtn.style.display = use_api ? "inline-flex" : "none";
   fd.append("use_api", use_api ? "1" : "0");
   fd.append("api_key", (apiKeyInput.value || "").trim());
   fd.append("model_label", modelSelect.value);
   fd.append("lang_label", langSelect.value);
   if (use_api) fd.append("output_type", outputTypeSelect.value);
   Array.from(filesInput.files).forEach(f => fd.append("files", f, f.name));
+
 
   try {
     const res = await fetch("/api/transcribe", { method: "POST", body: fd });
@@ -270,8 +272,9 @@ resetBtn.addEventListener("click", () => {
   logsPre.textContent = "";
   filesList.innerHTML = "";
   progressBar.style.width = "0%";
-  downloadWrap.hidden = true;
+  downloadWrap.style.display = "none";
   summaryBtn.style.display = "none";
+
 
   // Remettre les options par défaut
   fillModelOptions();
