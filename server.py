@@ -170,7 +170,7 @@ async def transcribe_endpoint(
     api_key: Optional[str] = Form(None),
     model_label: str = Form(...),
     lang_label: str = Form(...),
-    output_type: str = Form("resume"),
+    output_type: Optional[str] = Form(None),
     files: List[UploadFile] = File(...),
 ):
     if not files:
@@ -193,8 +193,13 @@ async def transcribe_endpoint(
         raise HTTPException(status_code=400, detail="Langue inconnue")
     lang_code = LANGS[lang_label]
 
-    if output_type not in OUTPUT_PROMPTS:
-        raise HTTPException(status_code=400, detail="Format de sortie inconnu")
+    if use_api_bool:
+        if not output_type:
+            output_type = "resume"
+        if output_type not in OUTPUT_PROMPTS:
+            raise HTTPException(status_code=400, detail="Format de sortie inconnu")
+    else:
+        output_type = None
 
     job_id = str(uuid.uuid4())
     job_upload_dir = UPLOAD_DIR / job_id
@@ -258,23 +263,40 @@ def download_zip(job_id: str):
     )
 
 @app.get("/api/download-txt/{job_id}")
-def download_txt(job_id: str, merge: bool = True):
+def download_txt(job_id: str, kind: str = "transcription", merge: bool = True):
     job_trans_dir = TRANS_DIR / job_id
     if not job_trans_dir.exists():
         raise HTTPException(status_code=404, detail="Transcriptions introuvables")
 
-    txt_files = sorted(job_trans_dir.glob("*.txt"))
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+    output_type = job.get("output_type") if job else None
+
+    if kind == "summary":
+        if not output_type:
+            raise HTTPException(status_code=404, detail="Aucun résumé disponible")
+        txt_files = sorted(job_trans_dir.glob(f"*_{output_type}.txt"))
+    else:
+        if output_type:
+            txt_files = sorted(
+                p for p in job_trans_dir.glob("*.txt") if not p.name.endswith(f"_{output_type}.txt")
+            )
+        else:
+            txt_files = sorted(job_trans_dir.glob("*.txt"))
+
     if not txt_files:
         raise HTTPException(status_code=404, detail="Aucun .txt trouvé")
 
-    out_txt = TEMP_DIR / f"transcriptions_{job_id}.txt"
+    name_root = output_type if kind == "summary" and output_type else "transcriptions"
+    out_txt = TEMP_DIR / f"{name_root}_{job_id}.txt"
 
     if merge or len(txt_files) > 1:
         with out_txt.open("w", encoding="utf-8", newline="\n") as out:
             for i, p in enumerate(txt_files, 1):
                 out.write(f"===== {p.name} =====\n")
-                out.write(p.read_text(encoding="utf-8"))
-                if not p.read_text(encoding="utf-8").endswith("\n"):
+                content = p.read_text(encoding="utf-8")
+                out.write(content)
+                if not content.endswith("\n"):
                     out.write("\n")
                 if i < len(txt_files):
                     out.write("\n")
@@ -355,11 +377,20 @@ def _run_cloud(job_id: str, client: "OpenAI"):
 
             out_dir = TRANS_DIR / job_id
             out_dir.mkdir(parents=True, exist_ok=True)
-            out_file = out_dir / (pathlib.Path(fmeta["name"]).stem + ".txt")
-            out_file.write_text(
-                processed + ("\n" if processed and not processed.endswith("\n") else ""),
+            stem = pathlib.Path(fmeta["name"]).stem
+            trans_file = out_dir / f"{stem}_transcription.txt"
+            trans_file.write_text(
+                text + ("\n" if text and not text.endswith("\n") else ""),
                 encoding="utf-8",
             )
+
+            out_file = trans_file
+            if output_type and processed:
+                out_file = out_dir / f"{stem}_{output_type}.txt"
+                out_file.write_text(
+                    processed + ("\n" if processed and not processed.endswith("\n") else ""),
+                    encoding="utf-8",
+                )
 
             set_file_output(job_id, idx, str(out_file))
             set_file_progress(job_id, idx, 1.0)                    # <— ajout
@@ -415,14 +446,15 @@ def _run_local(job_id: str):
 
             out_dir = TRANS_DIR / job_id
             out_dir.mkdir(parents=True, exist_ok=True)
-            out_file = out_dir / (pathlib.Path(fmeta["name"]).stem + ".txt")
-            out_file.write_text(text + ("\n" if text and not text.endswith("\n") else ""), encoding="utf-8")
+            out_text = "\n".join(full_text).strip()
+            out_file = out_dir / (pathlib.Path(fmeta["name"]).stem + "_transcription.txt")
+            out_file.write_text(out_text + ("\n" if out_text and not out_text.endswith("\n") else ""), encoding="utf-8")
 
             set_file_output(job_id, idx, str(out_file))
             set_file_progress(job_id, idx, 1.0)                    # <— ajout
             set_job_progress(job_id, (idx + 1) / max(total, 1))    # <— ajout
             update_file_status(job_id, idx, "done")
-            append_log(job_id, f"✓ Terminé (API) : {fmeta['name']} → {out_file.name}")
+            append_log(job_id, f"✓ Terminé (local) : {fmeta['name']} → {out_file.name}")
 
         except Exception as e:
             update_file_status(job_id, idx, "error", error=str(e))
