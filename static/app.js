@@ -227,7 +227,7 @@ form.addEventListener("submit", async (e) => {
   fd.append("api_key", (apiKeyInput.value || "").trim());
   fd.append("model_label", modelSelect.value);
   fd.append("lang_label", langSelect.value);
-  fd.append("output_type", outputTypeSelect.value);
+  if (use_api) fd.append("output_type", outputTypeSelect.value);
   Array.from(filesInput.files).forEach(f => fd.append("files", f, f.name));
 
   try {
