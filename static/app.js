@@ -23,10 +23,6 @@ const summaryBtn = document.getElementById("btn-summary");
 
 const themeBtn = document.getElementById("toggle-theme");
 
-// Masquer les boutons de téléchargement tant que la transcription n'est pas terminée
-downloadWrap.hidden = true;
-
-
 // ====== État local ======
 let pollTimer = null;
 let currentJobId = null;
@@ -139,7 +135,6 @@ async function downloadTxt(jobId, kind = 'transcription', merge = true) {
 }
 window.downloadTxt = downloadTxt;
 
-
 // ====== Polling ======
 async function pollStatus() {
   if (!currentJobId) return;
@@ -232,14 +227,14 @@ form.addEventListener("submit", async (e) => {
 
   const fd = new FormData();
   const use_api = modeSelect.value === "api";
-  summaryBtn.style.display = use_api ? "inline-flex" : "none";
+  summaryBtn.style.display = "none";
+
   fd.append("use_api", use_api ? "1" : "0");
   fd.append("api_key", (apiKeyInput.value || "").trim());
   fd.append("model_label", modelSelect.value);
   fd.append("lang_label", langSelect.value);
   if (use_api) fd.append("output_type", outputTypeSelect.value);
   Array.from(filesInput.files).forEach(f => fd.append("files", f, f.name));
-
 
   try {
     const res = await fetch("/api/transcribe", { method: "POST", body: fd });
@@ -277,7 +272,6 @@ resetBtn.addEventListener("click", () => {
   progressBar.style.width = "0%";
   downloadWrap.hidden = true;
   summaryBtn.style.display = "none";
-
 
   // Remettre les options par défaut
   fillModelOptions();

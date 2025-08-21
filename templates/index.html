@@ -31,7 +31,6 @@
       }
 
       html, body { height: 100%; }
-      [hidden] { display: none !important; }
       body {
         margin: 0;
         background: var(--bg);
@@ -181,8 +180,7 @@
         <div id="files-list" class="files-list"></div>
         <pre id="logs" class="logs"></pre>
 
-        <div id="downloads" class="actions" style="gap:.5rem;" hidden>
-
+        <div id="downloads" class="actions" style="display:flex; gap:.5rem;">
           <button class="button ghost" id="btn-transcription" onclick="downloadTxt(currentJobId, 'transcription', true)">Télécharger la transcription (TXT)</button>
           <button class="button ghost" id="btn-summary" style="display:none;" onclick="downloadTxt(currentJobId, 'summary', true)">Télécharger le résumé (TXT)</button>
           <button class="button" id="btn-zip" onclick="downloadZip(currentJobId)">Télécharger en ZIP</button>
