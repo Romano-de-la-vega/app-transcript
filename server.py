@@ -170,7 +170,7 @@ async def transcribe_endpoint(
     api_key: Optional[str] = Form(None),
     model_label: str = Form(...),
     lang_label: str = Form(...),
-    output_type: str = Form("resume"),
+    output_type: Optional[str] = Form(None),
     files: List[UploadFile] = File(...),
 ):
     if not files:
@@ -193,8 +193,13 @@ async def transcribe_endpoint(
         raise HTTPException(status_code=400, detail="Langue inconnue")
     lang_code = LANGS[lang_label]
 
-    if output_type not in OUTPUT_PROMPTS:
-        raise HTTPException(status_code=400, detail="Format de sortie inconnu")
+    if use_api_bool:
+        if not output_type:
+            output_type = "resume"
+        if output_type not in OUTPUT_PROMPTS:
+            raise HTTPException(status_code=400, detail="Format de sortie inconnu")
+    else:
+        output_type = None
 
     job_id = str(uuid.uuid4())
     job_upload_dir = UPLOAD_DIR / job_id
