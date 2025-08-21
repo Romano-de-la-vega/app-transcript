@@ -26,6 +26,7 @@ const themeBtn = document.getElementById("toggle-theme");
 // Masquer les boutons de téléchargement tant que la transcription n'est pas terminée
 downloadWrap.style.display = "none";
 
+
 // ====== État local ======
 let pollTimer = null;
 let currentJobId = null;
@@ -169,6 +170,7 @@ async function pollStatus() {
       startBtn.classList.remove("danger");
       if (job.status === "done") downloadWrap.style.display = "flex";
     }
+
     
 
   } catch (err) {
@@ -235,6 +237,7 @@ form.addEventListener("submit", async (e) => {
   if (use_api) fd.append("output_type", outputTypeSelect.value);
   Array.from(filesInput.files).forEach(f => fd.append("files", f, f.name));
 
+
   try {
     const res = await fetch("/api/transcribe", { method: "POST", body: fd });
     if (!res.ok) throw new Error(await res.text());
@@ -271,6 +274,7 @@ resetBtn.addEventListener("click", () => {
   progressBar.style.width = "0%";
   downloadWrap.style.display = "none";
   summaryBtn.style.display = "none";
+
 
   // Remettre les options par défaut
   fillModelOptions();
