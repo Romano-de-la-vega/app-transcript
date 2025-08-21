@@ -26,6 +26,7 @@ const themeBtn = document.getElementById("toggle-theme");
 // Masquer les boutons de téléchargement tant que la transcription n'est pas terminée
 downloadWrap.hidden = true;
 
+
 // ====== État local ======
 let pollTimer = null;
 let currentJobId = null;
@@ -138,6 +139,7 @@ async function downloadTxt(jobId, kind = 'transcription', merge = true) {
 }
 window.downloadTxt = downloadTxt;
 
+
 // ====== Polling ======
 async function pollStatus() {
   if (!currentJobId) return;
@@ -167,7 +169,10 @@ async function pollStatus() {
       startBtn.disabled = false;
       startBtn.textContent = "Lancer la transcription";
       startBtn.classList.remove("danger");
-      if (job.status === "done") downloadWrap.hidden = false;
+      if (job.status === "done") {
+        downloadWrap.hidden = false;
+        summaryBtn.style.display = job.use_api ? "inline-flex" : "none";
+      }
     }
     
 
@@ -235,6 +240,7 @@ form.addEventListener("submit", async (e) => {
   if (use_api) fd.append("output_type", outputTypeSelect.value);
   Array.from(filesInput.files).forEach(f => fd.append("files", f, f.name));
 
+
   try {
     const res = await fetch("/api/transcribe", { method: "POST", body: fd });
     if (!res.ok) throw new Error(await res.text());
@@ -271,6 +277,7 @@ resetBtn.addEventListener("click", () => {
   progressBar.style.width = "0%";
   downloadWrap.hidden = true;
   summaryBtn.style.display = "none";
+
 
   // Remettre les options par défaut
   fillModelOptions();
