@@ -3,6 +3,8 @@ const form = document.getElementById("form");
 const modeSelect = document.getElementById("mode");
 const apiKeyWrap = document.getElementById("api-key-wrap");
 const apiKeyInput = document.getElementById("api_key");
+const outputTypeWrap = document.getElementById("output-type-wrap");
+const outputTypeSelect = document.getElementById("output_type");
 
 const modelSelect = document.getElementById("model");
 const langSelect = document.getElementById("lang");
@@ -66,7 +68,8 @@ function fillModelOptions() {
     modelSelect.appendChild(opt);
   });
 
-  apiKeyWrap.style.display = useAPI ? "flex" : "none";
+  apiKeyWrap.hidden = !useAPI;
+  outputTypeWrap.hidden = !useAPI;
 }
 function fillLangOptions() {
   langSelect.innerHTML = "";
@@ -224,6 +227,9 @@ form.addEventListener("submit", async (e) => {
   fd.append("api_key", (apiKeyInput.value || "").trim());
   fd.append("model_label", modelSelect.value);
   fd.append("lang_label", langSelect.value);
+  if (use_api) {
+    fd.append("output_type", outputTypeSelect.value);
+  }
   Array.from(filesInput.files).forEach(f => fd.append("files", f, f.name));
 
   try {

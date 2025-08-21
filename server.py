@@ -91,6 +91,22 @@ LANGS: Dict[str, str] = {
 DEFAULT_LANG = "Français"
 DEFAULT_MODEL_LOCAL = "Large v3 (CPU lourd)"
 
+# — prompts selon le format de sortie désiré
+OUTPUT_PROMPTS: Dict[str, str] = {
+    "resume": (
+        "Résume le texte suivant en français, sans phrase d'introduction ni conclusion:\n{texte}"
+    ),
+    "compte_rendu": (
+        "Rédige un compte-rendu en français du texte suivant, sans phrase d'introduction ni conclusion:\n{texte}"
+    ),
+    "cahier_des_charges": (
+        "À partir du texte suivant, rédige un cahier des charges en français, sans phrase d'introduction ni conclusion:\n{texte}"
+    ),
+    "notes_de_cadrage": (
+        "À partir du texte suivant, rédige des notes de cadrage en français, sans phrase d'introduction ni conclusion:\n{texte}"
+    ),
+}
+
 # — tailles approximatives pour le suivi de progression (octets)
 #   valeurs proches des poids CTranslate2 (pratique pour une jauge réaliste)
 MODEL_APPROX_SIZE = {
@@ -154,6 +170,7 @@ async def transcribe_endpoint(
     api_key: Optional[str] = Form(None),
     model_label: str = Form(...),
     lang_label: str = Form(...),
+    output_type: Optional[str] = Form(None),
     files: List[UploadFile] = File(...),
 ):
     if not files:
@@ -175,6 +192,12 @@ async def transcribe_endpoint(
     if lang_label not in LANGS:
         raise HTTPException(status_code=400, detail="Langue inconnue")
     lang_code = LANGS[lang_label]
+
+    if use_api_bool:
+        if not output_type or output_type not in OUTPUT_PROMPTS:
+            raise HTTPException(status_code=400, detail="Format de sortie inconnu")
+    else:
+        output_type = "resume"
 
     job_id = str(uuid.uuid4())
     job_upload_dir = UPLOAD_DIR / job_id
@@ -202,6 +225,7 @@ async def transcribe_endpoint(
         "use_api": use_api_bool,
         "model": model_name,
         "lang": lang_code,
+        "output_type": output_type,
         "progress": 0.0,
         "logs": [f"Job {job_id} créé avec {len(files_meta)} fichier(s)."],
         "files": files_meta,
@@ -310,6 +334,7 @@ def _run_cloud(job_id: str, client: "OpenAI"):
     total = len(job["files"])
     model_name = job["model"]
     lang = job["lang"]
+    output_type = job.get("output_type", "resume")
 
     for idx, fmeta in enumerate(job["files"]):
         update_file_status(job_id, idx, "running")
@@ -323,16 +348,27 @@ def _run_cloud(job_id: str, client: "OpenAI"):
                 )
             text = (getattr(resp, "text", "") or "").strip()
 
+            processed = text
+            prompt_tmpl = OUTPUT_PROMPTS.get(output_type)
+            if prompt_tmpl and text:
+                append_log(job_id, f"→ GPT-4 pour '{output_type}'")
+                prompt = prompt_tmpl.format(texte=text)
+                resp2 = client.responses.create(model="gpt-4o", input=prompt)
+                processed = (getattr(resp2, "output_text", "") or "").strip()
+
             out_dir = TRANS_DIR / job_id
             out_dir.mkdir(parents=True, exist_ok=True)
             out_file = out_dir / (pathlib.Path(fmeta["name"]).stem + ".txt")
-            out_file.write_text("\n".join(full_text).strip() + "\n", encoding="utf-8")
+            out_file.write_text(
+                processed + ("\n" if processed and not processed.endswith("\n") else ""),
+                encoding="utf-8",
+            )
 
             set_file_output(job_id, idx, str(out_file))
             set_file_progress(job_id, idx, 1.0)                    # <— ajout
             set_job_progress(job_id, (idx + 1) / max(total, 1))    # <— ajout
             update_file_status(job_id, idx, "done")
-            append_log(job_id, f"✓ Terminé (local) : {fmeta['name']} → {out_file.name}")
+            append_log(job_id, f"✓ Terminé (API) : {fmeta['name']} → {out_file.name}")
 
         except Exception as e:
             update_file_status(job_id, idx, "error", error=str(e))
