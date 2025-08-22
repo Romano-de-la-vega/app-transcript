@@ -45,7 +45,18 @@ UPLOAD_DIR = BASE_DIR / "uploads"
 TRANS_DIR  = BASE_DIR / "transcriptions"
 TEMP_DIR   = BASE_DIR / "tmp"
 ASSETS_DIR = BASE_DIR / "assets"
-MODELS_DIR = BASE_DIR / "models"   # <— on force le cache des modèles ici (pratique pour le .exe)
+
+# Répertoire persistant pour les modèles Whisper.
+# Peut être personnalisé via la variable d'environnement WHISPER_MODELS_DIR.
+def _get_models_dir() -> Path:
+    env = os.getenv("WHISPER_MODELS_DIR")
+    if env:
+        return Path(env).expanduser()
+    # Dossier par défaut dans ~/.cache pour éviter les redécoupages du one-file PyInstaller.
+    return Path.home() / ".cache" / "transcripteur-whisper" / "models"
+
+MODELS_DIR = _get_models_dir()
+
 for d in (UPLOAD_DIR, TRANS_DIR, TEMP_DIR, MODELS_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
