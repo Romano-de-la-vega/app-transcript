@@ -17,12 +17,12 @@ VSVersionInfo(
           [
             StringStruct('CompanyName', 'Romain Cieslik'),
             StringStruct('FileDescription', 'Transcripteur Whisper'),
-            StringStruct('FileVersion', '1.0.0'),
+            StringStruct('FileVersion', '1.5.1'),
             StringStruct('InternalName', 'TranscripteurWhisper'),
             StringStruct('LegalCopyright', '© 2025 Romain Cieslik'),
             StringStruct('OriginalFilename', 'TranscripteurWhisper.exe'),
             StringStruct('ProductName', 'Transcripteur Whisper'),
-            StringStruct('ProductVersion', '1.0.0')
+            StringStruct('ProductVersion', '1.1.0')
           ]
         )
       ]
