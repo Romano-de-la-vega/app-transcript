@@ -19,8 +19,12 @@ const jobStateSpan = document.getElementById("job-state");
 const filesList = document.getElementById("files-list");
 const logsPre = document.getElementById("logs");
 const downloadWrap = document.getElementById("downloads");
+const summaryBtn = document.getElementById("btn-summary");
 
 const themeBtn = document.getElementById("toggle-theme");
+
+// Masquer les boutons de téléchargement tant que la transcription n'est pas terminée
+downloadWrap.hidden = true;
 
 // ====== État local ======
 let pollTimer = null;
@@ -120,14 +124,14 @@ async function downloadZip(jobId) {
 }
 window.downloadZip = downloadZip;
 
-async function downloadTxt(jobId, merge = true) {
+async function downloadTxt(jobId, kind = 'transcription', merge = true) {
   try {
-    const res = await fetch(`/api/download-txt/${jobId}?merge=${merge ? 1 : 0}`, { method: 'GET', cache: 'no-store' });
+    const res = await fetch(`/api/download-txt/${jobId}?merge=${merge ? 1 : 0}&kind=${kind}`, { method: 'GET', cache: 'no-store' });
     if (!res.ok) { alert(`Échec TXT (${res.status}).`); return; }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `transcriptions_${jobId}.txt`;
+    a.href = url;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
   } catch (e) { alert('Échec du téléchargement TXT : ' + e); }
@@ -147,6 +151,10 @@ async function pollStatus() {
     progressBar.style.width = `${formatPct(job.progress)}%`;
     renderFiles(job.files);
 
+    // Assurer l'affichage correct des boutons selon l'état et le mode
+    downloadWrap.hidden = job.status !== "done";
+    summaryBtn.style.display = job.use_api ? "inline-flex" : "none";
+
     if (Array.isArray(job.logs)) {
       const slice = job.logs.slice(lastLogLength).join("\n");
       if (slice.trim().length) {
@@ -163,7 +171,6 @@ async function pollStatus() {
       startBtn.disabled = false;
       startBtn.textContent = "Lancer la transcription";
       startBtn.classList.remove("danger");
-      if (job.status === "done") downloadWrap.hidden = false;
     }
     
 
@@ -223,11 +230,12 @@ form.addEventListener("submit", async (e) => {
 
   const fd = new FormData();
   const use_api = modeSelect.value === "api";
+  summaryBtn.style.display = use_api ? "inline-flex" : "none";
   fd.append("use_api", use_api ? "1" : "0");
   fd.append("api_key", (apiKeyInput.value || "").trim());
   fd.append("model_label", modelSelect.value);
   fd.append("lang_label", langSelect.value);
-  fd.append("output_type", outputTypeSelect.value);
+  if (use_api) fd.append("output_type", outputTypeSelect.value);
   Array.from(filesInput.files).forEach(f => fd.append("files", f, f.name));
 
   try {
@@ -265,6 +273,7 @@ resetBtn.addEventListener("click", () => {
   filesList.innerHTML = "";
   progressBar.style.width = "0%";
   downloadWrap.hidden = true;
+  summaryBtn.style.display = "none";
 
   // Remettre les options par défaut
   fillModelOptions();
